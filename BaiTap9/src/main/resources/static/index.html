@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Quản lý sản phẩm</title>
+</head>
+<body>
+  <h1>Sản phẩm</h1>
+
+  <button id="loadSorted">Load products (price asc)</button>
+  <div id="products"></div>
+
+  <h2>Products by Category</h2>
+  <input id="categoryId" placeholder="category id">
+  <button id="loadByCat">Load</button>
+  <div id="productsByCat"></div>
+
+<script>
+  async function graphqlQuery(query, variables) {
+    const res = await fetch('/graphql', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({query, variables})
+    });
+    return res.json();
+  }
+
+  document.getElementById('loadSorted').onclick = async () => {
+    const query = `query { productsSortedByPrice { id title price } }`;
+    const resp = await graphqlQuery(query);
+    const list = resp.data.productsSortedByPrice || [];
+    document.getElementById('products').innerHTML = list.map(p => `<div>${p.id} - ${p.title} - ${p.price}</div>`).join('');
+  };
+
+  document.getElementById('loadByCat').onclick = async () => {
+    const catId = document.getElementById('categoryId').value;
+    const query = `query($catId: ID!){ productsByCategory(categoryId: $catId){ id title price } }`;
+    const resp = await graphqlQuery(query, {catId});
+    const list = resp.data.productsByCategory || [];
+    document.getElementById('productsByCat').innerHTML = list.map(p => `<div>${p.id} - ${p.title} - ${p.price}</div>`).join('');
+  };
+</script>
+
+</body>
+</html>

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Quản lý Category</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+<h2>Quản lý Category</h2>
+
+<!-- Form thêm / sửa -->
+<form id="categoryForm">
+    <input type="hidden" id="categoryId">
+    <label>Name: <input type="text" id="categoryName"></label>
+    <label>Images: <input type="text" id="categoryImages"></label>
+    <button type="submit">Lưu</button>
+</form>
+
+<hr>
+
+<table border="1" id="categoryTable">
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Images</th>
+        <th>Actions</th>
+    </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<script>
+    function loadCategories() {
+        const query = `
+            query {
+                allCategories {
+                    id
+                    name
+                    images
+                }
+            }
+        `;
+
+        $.ajax({
+            url: "/graphql",
+            method: "POST",
+            contentType: "application/json",
+            data: JSON.stringify({ query }),
+            success: function(response) {
+                const categories = response.data.allCategories;
+                let rows = "";
+                categories.forEach(c => {
+                    rows += `<tr>
+                                <td>${c.id}</td>
+                                <td>${c.name}</td>
+                                <td>${c.images}</td>
+                                <td>
+                                    <button onclick="editCategory(${c.id}, '${c.name}', '${c.images}')">Sửa</button>
+                                    <button onclick="deleteCategory(${c.id})">Xóa</button>
+                                </td>
+                             </tr>`;
+                });
+                $("#categoryTable tbody").html(rows);
+            }
+        });
+    }
+
+    // Thêm / cập nhật Category
+    $("#categoryForm").submit(function(e) {
+        e.preventDefault();
+        const id = $("#categoryId").val();
+        const name = $("#categoryName").val();
+        const images = $("#categoryImages").val();
+
+        let query, variables;
+        if (id) {
+            // Update
+            query = `
+                mutation($id: ID!, $input: CategoryInput!) {
+                    updateCategory(id: $id, input: $input) {
+                        id
+                        name
+                        images
+                    }
+                }
+            `;
+            variables = { id: parseInt(id), input: { name, images } };
+        } else {
+            // Create
+            query = `
+                mutation($input: CategoryInput!) {
+                    createCategory(input: $input) {
+                        id
+                        name
+                        images
+                    }
+                }
+            `;
+            variables = { input: { name, images } };
+        }
+
+        $.ajax({
+            url: "/graphql",
+            method: "POST",
+            contentType: "application/json",
+            data: JSON.stringify({ query, variables }),
+            success: function() {
+                $("#categoryForm")[0].reset();
+                $("#categoryId").val("");
+                loadCategories();
+            }
+        });
+    });
+
+    // Xóa Category
+    function deleteCategory(id) {
+        const query = `
+            mutation($id: ID!) {
+                deleteCategory(id: $id)
+            }
+        `;
+        const variables = { id: parseInt(id) };
+
+        $.ajax({
+            url: "/graphql",
+            method: "POST",
+            contentType: "application/json",
+            data: JSON.stringify({ query, variables }),
+            success: function() {
+                loadCategories();
+            }
+        });
+    }
+
+    // Sửa Category
+    function editCategory(id, name, images) {
+        $("#categoryId").val(id);
+        $("#categoryName").val(name);
+        $("#categoryImages").val(images);
+    }
+
+    $(document).ready(function() {
+        loadCategories();
+    });
+</script>
+
+</body>
+</html>

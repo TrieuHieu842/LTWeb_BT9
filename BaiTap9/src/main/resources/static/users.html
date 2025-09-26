@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Quản lý User</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+<h2>Danh sách User</h2>
+<table border="1" id="userTable">
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>Fullname</th>
+        <th>Email</th>
+        <th>Phone</th>
+        <th>Hành động</th>
+    </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<h2>Thêm User</h2>
+<form id="addUserForm">
+    Fullname: <input type="text" id="fullname"><br>
+    Email: <input type="text" id="email"><br>
+    Password: <input type="password" id="password"><br>
+    Phone: <input type="text" id="phone"><br>
+    <button type="submit">Thêm</button>
+</form>
+
+<script>
+    function loadUsers() {
+        const query = `
+            query {
+                allUsers {
+                    id
+                    fullname
+                    email
+                    phone
+                }
+            }
+        `;
+        $.ajax({
+            url: "/graphql",
+            method: "POST",
+            contentType: "application/json",
+            data: JSON.stringify({ query }),
+            success: function(response) {
+                const users = response.data.allUsers;
+                let rows = "";
+                users.forEach(u => {
+                    rows += `<tr>
+                                <td>${u.id}</td>
+                                <td>${u.fullname}</td>
+                                <td>${u.email}</td>
+                                <td>${u.phone}</td>
+                                <td>
+                                    <button onclick="deleteUser(${u.id})">Xóa</button>
+                                    <button onclick="editUser(${u.id}, '${u.fullname}', '${u.email}', '${u.phone}')">Sửa</button>
+                                </td>
+                             </tr>`;
+                });
+                $("#userTable tbody").html(rows);
+            }
+        });
+    }
+
+    function deleteUser(id) {
+        const mutation = `
+            mutation($id: ID!) {
+                deleteUser(id: $id)
+            }
+        `;
+        $.ajax({
+            url: "/graphql",
+            method: "POST",
+            contentType: "application/json",
+            data: JSON.stringify({ query: mutation, variables: { id } }),
+            success: function() {
+                alert("Xóa thành công!");
+                loadUsers();
+            }
+        });
+    }
+
+    function editUser(id, fullname, email, phone) {
+        const newName = prompt("Nhập fullname:", fullname);
+        const newEmail = prompt("Nhập email:", email);
+        const newPhone = prompt("Nhập phone:", phone);
+        const newPass = prompt("Nhập mật khẩu mới:", "123");
+
+        const mutation = `
+            mutation($id: ID!, $input: UserInput) {
+                updateUser(id: $id, input: $input) {
+                    id fullname email phone
+                }
+            }
+        `;
+        const variables = {
+            id,
+            input: { fullname: newName, email: newEmail, phone: newPhone, password: newPass }
+        };
+
+        $.ajax({
+            url: "/graphql",
+            method: "POST",
+            contentType: "application/json",
+            data: JSON.stringify({ query: mutation, variables }),
+            success: function() {
+                alert("Cập nhật thành công!");
+                loadUsers();
+            }
+        });
+    }
+
+    $(document).ready(function() {
+        loadUsers();
+
+        $("#addUserForm").submit(function(e) {
+            e.preventDefault();
+            const fullname = $("#fullname").val();
+            const email = $("#email").val();
+            const password = $("#password").val();
+            const phone = $("#phone").val();
+
+            const mutation = `
+                mutation($input: UserInput) {
+                    createUser(input: $input) {
+                        id fullname email phone
+                    }
+                }
+            `;
+            const variables = { input: { fullname, email, password, phone } };
+
+            $.ajax({
+                url: "/graphql",
+                method: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({ query: mutation, variables }),
+                success: function() {
+                    alert("Thêm thành công!");
+                    loadUsers();
+                }
+            });
+        });
+    });
+</script>
+</body>
+</html>

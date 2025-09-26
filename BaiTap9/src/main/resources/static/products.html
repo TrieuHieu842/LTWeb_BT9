@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Quản lý Sản phẩm</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+<h2>Quản lý Sản phẩm (Price tăng dần)</h2>
+
+<!-- Form thêm / sửa -->
+<form id="productForm">
+    <input type="hidden" id="productId">
+    <label>Title: <input type="text" id="productTitle"></label>
+    <label>Quantity: <input type="number" id="productQuantity"></label>
+    <label>Price: <input type="number" id="productPrice"></label>
+    <button type="submit">Lưu</button>
+</form>
+
+<hr>
+
+<table border="1" id="productTable">
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>Title</th>
+        <th>Quantity</th>
+        <th>Price</th>
+        <th>Actions</th>
+    </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<script>
+    // Hàm load danh sách sản phẩm
+    function loadProducts() {
+        const query = `
+            query {
+                productsSortedByPrice {
+                    id
+                    title
+                    quantity
+                    price
+                }
+            }
+        `;
+
+        $.ajax({
+            url: "/graphql",
+            method: "POST",
+            contentType: "application/json",
+            data: JSON.stringify({ query }),
+            success: function(response) {
+                if (response.errors) {
+                    console.error("GraphQL errors:", response.errors);
+                    return;
+                }
+                const products = response.data.productsSortedByPrice;
+                let rows = "";
+                products.forEach(p => {
+                    rows += `<tr>
+                                <td>${p.id}</td>
+                                <td>${p.title}</td>
+                                <td>${p.quantity}</td>
+                                <td>${p.price}</td>
+                                <td>
+                                    <button onclick="editProduct(${p.id}, '${p.title}', ${p.quantity}, ${p.price})">Sửa</button>
+                                    <button onclick="deleteProduct(${p.id})">Xóa</button>
+                                </td>
+                             </tr>`;
+                });
+                $("#productTable tbody").html(rows);
+            },
+            error: function(err) {
+                console.error("AJAX error:", err);
+            }
+        });
+    }
+
+    // Submit form thêm / sửa
+    $("#productForm").submit(function(e) {
+        e.preventDefault();
+        const id = $("#productId").val();
+        const title = $("#productTitle").val();
+        const quantity = parseInt($("#productQuantity").val());
+        const price = parseFloat($("#productPrice").val());
+
+        let mutation;
+        if (id) {
+            // Update (cần input object)
+            mutation = `
+                mutation {
+                    updateProduct(id: ${id}, input: {
+                        title: "${title}",
+                        quantity: ${quantity},
+                        price: ${price},
+                        desc: "Không có mô tả",
+                        ownerId: null,
+                        categoryIds: []
+                    }) {
+                        id
+                        title
+                        quantity
+                        price
+                    }
+                }
+            `;
+        } else {
+            // Create (cần input object)
+            mutation = `
+                mutation {
+                    createProduct(input: {
+                        title: "${title}",
+                        quantity: ${quantity},
+                        price: ${price},
+                        desc: "Không có mô tả",
+                        ownerId: null,
+                        categoryIds: []
+                    }) {
+                        id
+                        title
+                        quantity
+                        price
+                    }
+                }
+            `;
+        }
+
+        $.ajax({
+            url: "/graphql",
+            method: "POST",
+            contentType: "application/json",
+            data: JSON.stringify({ query: mutation }),
+            success: function(response) {
+                if (response.errors) {
+                    console.error("GraphQL errors:", response.errors);
+                    alert("Có lỗi khi lưu sản phẩm!");
+                    return;
+                }
+                $("#productForm")[0].reset();
+                $("#productId").val("");
+                loadProducts();
+            },
+            error: function(err) {
+                console.error("AJAX error:", err);
+            }
+        });
+    });
+
+    // Xóa sản phẩm
+    function deleteProduct(id) {
+        const mutation = `
+            mutation {
+                deleteProduct(id: ${id})
+            }
+        `;
+        $.ajax({
+            url: "/graphql",
+            method: "POST",
+            contentType: "application/json",
+            data: JSON.stringify({ query: mutation }),
+            success: function(response) {
+                if (response.errors) {
+                    console.error("GraphQL errors:", response.errors);
+                    return;
+                }
+                loadProducts();
+            },
+            error: function(err) {
+                console.error("AJAX error:", err);
+            }
+        });
+    }
+
+    // Sửa sản phẩm
+    function editProduct(id, title, quantity, price) {
+        $("#productId").val(id);
+        $("#productTitle").val(title);
+        $("#productQuantity").val(quantity);
+        $("#productPrice").val(price);
+    }
+
+    $(document).ready(function() {
+        loadProducts();
+    });
+</script>
+</body>
+</html>
